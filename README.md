@@ -21,7 +21,7 @@ Control your computer's mouse using hand gestures captured through your webcam. 
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/gokul-s05/virtual_mouse.git
 cd virtual_mouse
 ```
 
