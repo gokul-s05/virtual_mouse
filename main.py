@@ -3,11 +3,18 @@ import mediapipe as mp
 import pyautogui
 import random
 import util
+import numpy as np
 from pynput.mouse import Button, Controller
 mouse = Controller()
 
-
+# Screen setup
 screen_width, screen_height = pyautogui.size()
+
+# Mouse smoothing parameters
+SMOOTHING_FACTOR = 0.5  # Adjusts how smooth the motion is (0-1)
+SCALING_FACTOR = 1.2    # Adjusts the sensitivity of mouse movement
+DEADZONE = 5           # Minimum pixel movement required
+prev_x, prev_y = 0, 0  # Previous mouse position
 
 mpHands = mp.solutions.hands
 hands = mpHands.Hands(
@@ -28,10 +35,41 @@ def find_finger_tip(processed):
 
 
 def move_mouse(index_finger_tip):
+    global prev_x, prev_y
+    
     if index_finger_tip is not None:
-        x = int(index_finger_tip.x * screen_width)
-        y = int(index_finger_tip.y / 2 * screen_height)
-        pyautogui.moveTo(x, y)
+        # Calculate raw coordinates
+        raw_x = int(index_finger_tip.x * screen_width)
+        raw_y = int(index_finger_tip.y / 2 * screen_height)
+        
+        # Apply smoothing using exponential moving average
+        smooth_x = int(SMOOTHING_FACTOR * raw_x + (1 - SMOOTHING_FACTOR) * prev_x)
+        smooth_y = int(SMOOTHING_FACTOR * raw_y + (1 - SMOOTHING_FACTOR) * prev_y)
+        
+        # Calculate movement delta
+        delta_x = abs(smooth_x - prev_x)
+        delta_y = abs(smooth_y - prev_y)
+        
+        # Only move if movement exceeds deadzone
+        if delta_x > DEADZONE or delta_y > DEADZONE:
+            # Apply scaling factor for more precise control
+            dx = (smooth_x - prev_x) * SCALING_FACTOR
+            dy = (smooth_y - prev_y) * SCALING_FACTOR
+            
+            # Get current mouse position and apply relative movement
+            current_x, current_y = pyautogui.position()
+            target_x = int(current_x + dx)
+            target_y = int(current_y + dy)
+            
+            # Ensure coordinates stay within screen bounds
+            target_x = max(0, min(target_x, screen_width))
+            target_y = max(0, min(target_y, screen_height))
+            
+            # Move the mouse
+            pyautogui.moveTo(target_x, target_y)
+            
+            # Update previous position
+            prev_x, prev_y = smooth_x, smooth_y
 
 
 def is_left_click(landmark_list, thumb_index_dist):
